@@ -145,6 +145,23 @@ async def on_ready():
     print("✅ Komendy zsynchronizowane i gotowe do użycia w guildzie.")
 
 
+# ===== URUCHOMIENIE SERWERA HTTP =====
+import threading
+
+def run_http_server():
+    import http.server
+    import socketserver
+    import os
+    PORT = int(os.environ.get("PORT", 10000))
+    Handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        print(f"Serwer HTTP nasłuchuje na porcie: {PORT}")
+        httpd.serve_forever()
+
+threading.Thread(target=run_http_server, daemon=True).start()
+
+
 # ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
+
 
