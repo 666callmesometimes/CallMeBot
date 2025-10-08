@@ -20,6 +20,9 @@ MOD_ROLE_ID = 1424068385292947576
 intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True
+intents.message_content = True
+intents.presences = True
+
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -144,3 +147,4 @@ async def on_ready():
 
 # ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
+
