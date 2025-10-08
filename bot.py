@@ -3,6 +3,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
+import asyncio
 
 # === ŁADOWANIE TOKENA Z .ENV ===
 load_dotenv()
@@ -161,7 +162,17 @@ def run_http_server():
 threading.Thread(target=run_http_server, daemon=True).start()
 
 
+# ===== POBUDZANIE BOTA =====
+async def keep_alive():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        print("Bot jest online i aktywny (keep-alive).")
+        await asyncio.sleep(600)  # pauza 10 minut
+
+bot.loop.create_task(keep_alive())
+
 # ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
+
 
 
