@@ -26,15 +26,16 @@ intents.message_content = True
 intents.presences = True
 
 
+# === DEFINICJA BOTA ===
 class MyBot(commands.Bot):
     async def setup_hook(self):
-        # Uruchom keep_alive jako task po starcie
+        # Uruchom keep_alive po starcie
         self.loop.create_task(self.keep_alive())
 
     async def keep_alive(self):
         await self.wait_until_ready()
         while not self.is_closed():
-            print("Bot jest online i aktywny (keep-alive).")
+            print("✅ Bot jest online i aktywny (keep-alive).")
             await asyncio.sleep(600)  # 10 minut
 
 
@@ -75,9 +76,7 @@ async def mp_block(interaction: discord.Interaction, uzytkownik: discord.Member)
 
     overwrite = discord.PermissionOverwrite(view_channel=False, send_messages=False)
 
-    # Blokada kategorii
     await category.set_permissions(uzytkownik, overwrite=overwrite)
-    # Blokada wszystkich kanałów w kategorii
     for channel in category.channels:
         await channel.set_permissions(uzytkownik, overwrite=overwrite)
 
@@ -99,9 +98,7 @@ async def mp_unblock(interaction: discord.Interaction, uzytkownik: discord.Membe
         await interaction.response.send_message("❌ Nie znaleziono kategorii Marketplace.", ephemeral=True)
         return
 
-    # Usunięcie ograniczeń z kategorii
     await category.set_permissions(uzytkownik, overwrite=None)
-    # Usunięcie ograniczeń ze wszystkich kanałów w kategorii
     for channel in category.channels:
         await channel.set_permissions(uzytkownik, overwrite=None)
 
@@ -123,7 +120,6 @@ async def mp_blocked(interaction: discord.Interaction):
         return
 
     blocked_members = []
-
     for target, overwrite in category.overwrites.items():
         if isinstance(target, discord.Member) and overwrite.view_channel is False:
             blocked_members.append(target.mention)
@@ -150,17 +146,14 @@ async def on_app_command_error(interaction: discord.Interaction, error):
 async def on_ready():
     print(f"✅ Bot zalogowany jako {bot.user}")
 
-    # Usuń stare komendy
     await clear_guild_commands()
-
-    # Synchronizacja komend lokalnie i globalnie
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     await bot.tree.sync()
 
     print("✅ Komendy zsynchronizowane i gotowe do użycia w guildzie.")
 
 
-# ===== URUCHOMIENIE SERWERA HTTP =====
+# ===== SERWER KEEP-ALIVE =====
 def run_http_server():
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -169,17 +162,18 @@ def run_http_server():
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            self.wfile.write(b"Bot is alive!")
+            self.wfile.write(b"Bot is alive and running!")
+
+        # Wyłącz logi w konsoli (Render potrafi spamować)
+        def log_message(self, format, *args):
+            return
 
     PORT = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("", PORT), KeepAliveHandler)
-    print(f"Serwer HTTP nasłuchuje na porcie: {PORT}")
+    print(f"🌐 HTTP server działa na porcie {PORT}")
     server.serve_forever()
 
 
+# ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
-
-
-# ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
-
