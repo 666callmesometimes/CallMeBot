@@ -4,6 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 import asyncio
+import threading
 
 # === ŁADOWANIE TOKENA Z .ENV ===
 load_dotenv()
@@ -25,7 +26,20 @@ intents.message_content = True
 intents.presences = True
 
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+class MyBot(commands.Bot):
+    async def setup_hook(self):
+        # Uruchom keep_alive jako task po starcie
+        self.loop.create_task(self.keep_alive())
+
+    async def keep_alive(self):
+        await self.wait_until_ready()
+        while not self.is_closed():
+            print("Bot jest online i aktywny (keep-alive).")
+            await asyncio.sleep(600)  # 10 minut
+
+
+bot = MyBot(command_prefix="!", intents=intents)
+
 
 # ===== DEKORATOR DLA ADMIN + MOD =====
 def is_admin_or_mod():
@@ -147,12 +161,9 @@ async def on_ready():
 
 
 # ===== URUCHOMIENIE SERWERA HTTP =====
-import threading
-
 def run_http_server():
     import http.server
     import socketserver
-    import os
     PORT = int(os.environ.get("PORT", 10000))
     Handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
@@ -164,7 +175,3 @@ threading.Thread(target=run_http_server, daemon=True).start()
 
 # ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
-
-
-
-
