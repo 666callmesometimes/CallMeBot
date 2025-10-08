@@ -162,16 +162,24 @@ async def on_ready():
 
 # ===== URUCHOMIENIE SERWERA HTTP =====
 def run_http_server():
-    import http.server
-    import socketserver
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class KeepAliveHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Bot is alive!")
+
     PORT = int(os.environ.get("PORT", 10000))
-    Handler = http.server.SimpleHTTPRequestHandler
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"Serwer HTTP nasłuchuje na porcie: {PORT}")
-        httpd.serve_forever()
+    server = HTTPServer(("", PORT), KeepAliveHandler)
+    print(f"Serwer HTTP nasłuchuje na porcie: {PORT}")
+    server.serve_forever()
+
 
 threading.Thread(target=run_http_server, daemon=True).start()
 
 
 # ===== URUCHOMIENIE BOTA =====
 bot.run(TOKEN)
+
