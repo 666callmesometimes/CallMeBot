@@ -302,7 +302,7 @@ async def clear(interaction: discord.Interaction, ilosc: str):
 #===== MEMBER COUNTER =====
 from discord.utils import get
 
-MEMBER_COUNT_CHANNEL_ID = 1331993023772364879  # podmień na ID kanału, gdzie chcesz wyświetlać licznik
+MEMBER_COUNT_CHANNEL_ID = 1425907738428440789  # podmień na ID kanału, gdzie chcesz wyświetlać licznik
 
 @bot.event
 async def on_member_join(member):
@@ -322,6 +322,7 @@ async def on_member_remove(member):
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
