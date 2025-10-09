@@ -133,26 +133,27 @@ async def mp_blocked(interaction: discord.Interaction):
 
 
 # ===== KOMENDA SAY =====
-@bot.tree.command(name="say", description="Bot wysyła wiadomość o podanej treści.")
-@app_commands.describe(tresc="Treść wiadomości, którą bot ma wysłać.")
+@bot.tree.command(name="say", description="Bot wysyła wiadomość o podanej treści na wybrany kanał.")
+@app_commands.describe(
+    kanal="Kanał, na który bot ma wysłać wiadomość",
+    treść="Treść wiadomości, którą bot ma wysłać"
+)
 @is_admin_or_mod()
-async def say(interaction: discord.Interaction, tresc: str):
+async def say(interaction: discord.Interaction, kanal: discord.TextChannel, treść: str):
     try:
+        # Wyślij wiadomość na wskazany kanał
+        await kanal.send(treść)
+
+        # Potwierdzenie (tylko dla osoby, która użyła komendy)
         await interaction.response.send_message(
-            f"✅ Wiadomość została wysłana: `{tresc}`", ephemeral=True
+            f"✅ Wysłano wiadomość na {kanal.mention}:\n> {treść}",
+            ephemeral=True
         )
-        await interaction.channel.send(tresc)
     except Exception as e:
-        await interaction.response.send_message(f"❌ Błąd przy wysyłaniu wiadomości: {e}", ephemeral=True)
-
-
-# ===== GLOBALNA OBSŁUGA BŁĘDÓW =====
-@bot.tree.error
-async def on_app_command_error(interaction: discord.Interaction, error):
-    if isinstance(error, app_commands.CheckFailure):
-        await interaction.response.send_message("🚫 Nie masz uprawnień do użycia tej komendy.", ephemeral=True)
-    else:
-        await interaction.response.send_message(f"❌ Wystąpił błąd: {error}", ephemeral=True)
+        await interaction.response.send_message(
+            f"❌ Wystąpił błąd przy wysyłaniu wiadomości: {e}",
+            ephemeral=True
+        )
 
 
 # ===== START BOTA =====
@@ -263,6 +264,7 @@ def run_http_server():
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
