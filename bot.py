@@ -260,10 +260,49 @@ def run_http_server():
     server.serve_forever()
 
 
+#===== CZYSZCZENIE WIADOMOŚCI Z KANAŁÓW =====
+@bot.tree.command(name="clear", description="Usuń określoną liczbę wiadomości z kanału lub wszystkie (parametr 'all').")
+@app_commands.describe(ilosc="Liczba wiadomości do usunięcia lub słowo 'all' dla usunięcia całego kanału.")
+@is_admin_or_mod()
+async def clear(interaction: discord.Interaction, ilosc: str):
+    await interaction.response.defer(ephemeral=True)
+
+    channel = interaction.channel
+
+    if ilosc.lower() == "all":
+        # Usuwanie wszystkich wiadomości w kanale, partiami po 100 (limit Discorda)
+        try:
+            def check(m):
+                return True  # sprawdza wszystkie wiadomości
+
+            while True:
+                deleted = await channel.purge(limit=100, check=check)
+                if len(deleted) < 100:
+                    break
+
+            await interaction.followup.send(f"✅ Usunięto wszystkie wiadomości w kanale {channel.mention}.")
+        except Exception as e:
+            await interaction.followup.send(f"❌ Wystąpił błąd podczas usuwania wiadomości: {e}")
+    else:
+        # Próba konwersji do liczby
+        try:
+            count = int(ilosc)
+            if count < 1 or count > 1000:
+                await interaction.followup.send("❌ Liczba musi być w zakresie 1-1000.")
+                return
+
+            deleted = await channel.purge(limit=count + 1)  # +1 zeby usunac tez komendę
+            await interaction.followup.send(f"✅ Usunięto {len(deleted)-1} wiadomości z kanału {channel.mention}.")
+        except ValueError:
+            await interaction.followup.send("❌ Nieprawidłowy parametr. Podaj liczbę lub słowo 'all'.")
+        except Exception as e:
+            await interaction.followup.send(f"❌ Wystąpił błąd podczas usuwania wiadomości: {e}")
+
 
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
