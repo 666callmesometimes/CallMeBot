@@ -299,9 +299,30 @@ async def clear(interaction: discord.Interaction, ilosc: str):
             await interaction.followup.send(f"❌ Wystąpił błąd podczas usuwania wiadomości: {e}")
 
 
+#===== MEMBER COUNTER =====
+from discord.utils import get
+
+MEMBER_COUNT_CHANNEL_ID = 1331993023772364879  # podmień na ID kanału, gdzie chcesz wyświetlać licznik
+
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
+    if channel:
+        await channel.edit(name=f"Członkowie: {guild.member_count}")
+
+@bot.event
+async def on_member_remove(member):
+    guild = member.guild
+    channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
+    if channel:
+        await channel.edit(name=f"Członkowie: {guild.member_count}")
+
+
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
