@@ -132,6 +132,20 @@ async def mp_blocked(interaction: discord.Interaction):
     await interaction.response.send_message(msg, ephemeral=False)
 
 
+# ===== KOMENDA SAY =====
+@bot.tree.command(name="say", description="Bot wysyła wiadomość o podanej treści.")
+@app_commands.describe(tresc="Treść wiadomości, którą bot ma wysłać.")
+@is_admin_or_mod()
+async def say(interaction: discord.Interaction, tresc: str):
+    try:
+        await interaction.response.send_message(
+            f"✅ Wiadomość została wysłana: `{tresc}`", ephemeral=True
+        )
+        await interaction.channel.send(tresc)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Błąd przy wysyłaniu wiadomości: {e}", ephemeral=True)
+
+
 # ===== GLOBALNA OBSŁUGA BŁĘDÓW =====
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error):
@@ -249,5 +263,6 @@ def run_http_server():
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
