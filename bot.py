@@ -20,9 +20,9 @@ ADMIN_ROLE_ID = 1424068271954595870
 MOD_ROLE_ID = 1424068385292947576
 
 # Kanały
-MEMBER_COUNT_CHANNEL_ID = 1425907738428440789  # licznik członków
-WELCOME_CHANNEL_ID = 1331993023772364879       # kanał powitalny
-RULES_CHANNEL_ID = 1283847799154413611         # kanał regulaminu
+MEMBER_COUNT_CHANNEL_ID = 1425907738428440789
+WELCOME_CHANNEL_ID = 1331993023772364879
+RULES_CHANNEL_ID = 1283847799154413611
 
 # === INTENTS ===
 intents = discord.Intents.default()
@@ -34,14 +34,16 @@ intents.presences = True
 # === DEFINICJA BOTA ===
 class MyBot(commands.Bot):
     async def setup_hook(self):
-        # Uruchom keep_alive po starcie
+        # Keep-alive task
         self.loop.create_task(self.keep_alive())
+        # Uruchomienie licznika członków co godzinę
+        self.loop.create_task(member_count_loop())
 
     async def keep_alive(self):
         await self.wait_until_ready()
         while not self.is_closed():
             print("✅ Bot jest online i aktywny (keep-alive).")
-            await asyncio.sleep(600)  # 10 minut
+            await asyncio.sleep(600)
 
 bot = MyBot(command_prefix="!", intents=intents)
 
@@ -168,16 +170,12 @@ async def clear(interaction: discord.Interaction, ilosc: str):
 @bot.event
 async def on_member_join(member):
     guild = member.guild
-
-    # 🔹 Powitanie w kanale powitalnym z pingiem
     welcome_channel = bot.get_channel(WELCOME_CHANNEL_ID)
     if not welcome_channel:
         print("⚠️ Nie znaleziono kanału powitalnego!")
         return
-
     # Ping dla użytkownika
     await welcome_channel.send(f"Witaj {member.mention}! 🎉")
-
     # Embed powitalny
     embed = discord.Embed(
         title=f"👋 Cieszymy się, że dołączyłeś {member.name}!",
@@ -187,7 +185,6 @@ async def on_member_join(member):
         ),
         color=discord.Color.purple()
     )
-
     rules_channel = bot.get_channel(RULES_CHANNEL_ID)
     if rules_channel:
         view = View()
@@ -200,7 +197,6 @@ async def on_member_join(member):
         await welcome_channel.send(embed=embed, view=view)
     else:
         await welcome_channel.send(embed=embed)
-
     print(f"📨 Wysłano powitanie dla {member}.")
 
 # ===== LICZNIK CZŁONKÓW CO GODZINĘ =====
@@ -212,10 +208,11 @@ async def member_count_loop():
         print("⚠️ Nie znaleziono guildy lub kanału licznika!")
         return
     while not bot.is_closed():
-        await channel.edit(name=f"Członkowie: {guild.member_count}")
-        await asyncio.sleep(3600)  # co 1 godzinę
-
-bot.loop.create_task(member_count_loop())
+        try:
+            await channel.edit(name=f"Członkowie: {guild.member_count}")
+        except Exception as e:
+            print(f"⚠️ Błąd aktualizacji licznika: {e}")
+        await asyncio.sleep(3600)
 
 # ===== START BOTA =====
 @bot.event
@@ -234,77 +231,7 @@ def run_http_server():
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
-            html = """
-            <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CallMeBot - Status page</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
-<style>
-    body {
-         margin: 0; 
-         padding: 0;
-         overflow: hidden;
-         display: flex;
-         justify-content: center;
-         align-items: center;
-         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-    }
-    h1 {
-        color: white;
-        font-size: 4rem;
-        margin: 0;
-    }
-    p {
-        color: #777;
-        font-size: 1rem;
-        font-weight: 500;
-    }
-    #text {
-        text-align: center;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-
-    }
-</style>
-</head>
-<body>
-    <div id="my-background" style="width: 100vw; height: 100vh;">
-        <div id="text">
-            <h1>Bot is alive and running</h1>
-            <p>Everything looks good — your Discord bot is online 🚀</p>
-        </div>
-
-    </div>
-<script>
-  VANTA.NET({
-    el: "#my-background",
-    backgroundAlpha: 1,
-    backgroundColor: 0xe0318,
-    color: 0x4a1a32,
-    gyroControls: false,
-    maxDistance: 24,
-    minHeight: 200,
-    minWidth: 200,
-    mouseControls: true,
-    points: 18,
-    scale: 1,
-    scaleMobile: 1,
-    showDots: true,
-    spacing: 16,
-    touchControls: false
-  });
-</script>
-</body>
-</html>
-            """
+            self.wfile.write(b"<h1>Bot is alive!</h1>")
         def log_message(self, format, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
