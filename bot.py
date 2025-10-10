@@ -320,45 +320,55 @@ async def on_member_remove(member):
 
 
 # ===== POWITANIE NOWEGO UŻYTKOWNIKA =====
-RULES_CHANNEL_ID = 1283847799154413611  # ⬅️ ID kanału #zasady
+from discord.ui import View, Button
+
+WELCOME_CHANNEL_ID = 1331993023772364879  # kanał powitalny
+RULES_CHANNEL_ID = 1283847799154413611  # kanał z zasadami
 
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # 🔸 Aktualizacja licznika członków
+    # aktualizacja licznika członków
     count_channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
     if count_channel:
         await count_channel.edit(name=f"Członkowie: {guild.member_count}")
 
-    # 🔸 Pobranie kanału z zasadami
-    channel = bot.get_channel(RULES_CHANNEL_ID)
-    if not channel:
-        print("⚠️ Nie znaleziono kanału z zasadami.")
+    # kanał powitalny
+    welcome_channel = bot.get_channel(WELCOME_CHANNEL_ID)
+    if not welcome_channel:
+        print("⚠️ Nie znaleziono kanału powitalnego!")
         return
 
-    # 🔸 Ustaw uprawnienia — widzi tylko on
-    await channel.set_permissions(member, read_messages=True, send_messages=False)
-
-    # 🔸 Wyślij powitanie
+    # embed powitalny
     embed = discord.Embed(
-        title="👋 Witaj na serwerze!",
+        title=f"👋 Witaj {member.name}!",
         description=(
-            f"Hej {member.mention}!\n\n"
-            "Aby korzystać z serwera, przeczytaj regulamin poniżej i kliknij emotkę ✅, "
-            "aby go zaakceptować.\n\n"
-            "Po akceptacji uzyskasz pełny dostęp do wszystkich kanałów."
+            "Cieszymy się, że dołączyłeś do serwera!\n\n"
+            "Aby w pełni korzystać z serwera, przeczytaj **regulamin** klikając w przycisk poniżej. "
+            "Po zaakceptowaniu, Carl-bot nada Ci odpowiednią rolę i odblokuje wszystkie kanały."
         ),
-        color=discord.Color.orange()
+        color=discord.Color.purple()
     )
 
-    await channel.send(member.mention, embed=embed)
-    print(f"📨 Wysłano powitanie dla nowego użytkownika: {member}")
+    # przycisk z linkiem do kanału #zasady
+    rules_channel = bot.get_channel(RULES_CHANNEL_ID)
+    if rules_channel:
+        view = View()
+        button = Button(label="📜 Przejdź do regulaminu", style=discord.ButtonStyle.link, url=f"https://discord.com/channels/{guild.id}/{rules_channel.id}")
+        view.add_item(button)
+        await welcome_channel.send(embed=embed, view=view)
+    else:
+        # jeśli nie znaleziono kanału zasad
+        await welcome_channel.send(embed=embed)
+
+    print(f"📨 Wysłano powitanie dla {member}.")
 
 
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
