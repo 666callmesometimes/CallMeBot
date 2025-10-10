@@ -164,26 +164,21 @@ async def clear(interaction: discord.Interaction, ilosc: str):
         except Exception as e:
             await interaction.followup.send(f"❌ Błąd: {e}")
 
-# ===== POWITANIE NOWEGO UŻYTKOWNIKA + LICZNIK =====
+# ===== POWITANIE NOWEGO UŻYTKOWNIKA =====
 @bot.event
 async def on_member_join(member):
     guild = member.guild
 
-    # 🔹 Licznik członków
-    count_channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
-    if count_channel:
-        await count_channel.edit(name=f"Członkowie: {guild.member_count}")
-
-    # 🔹 Powitanie w kanale powitalnym
+    # 🔹 Powitanie w kanale powitalnym z pingiem
     welcome_channel = bot.get_channel(WELCOME_CHANNEL_ID)
     if not welcome_channel:
         print("⚠️ Nie znaleziono kanału powitalnego!")
         return
 
-    # Ping użytkownika + embed
-    ping_message = await welcome_channel.send(f"Witaj {member.mention}! 🎉")  # ping osobny
-    await asyncio.sleep(1)  # małe opóźnienie żeby ping był widoczny przed embedem
+    # Ping dla użytkownika
+    await welcome_channel.send(f"Witaj {member.mention}! 🎉")
 
+    # Embed powitalny
     embed = discord.Embed(
         title=f"👋 Cieszymy się, że dołączyłeś {member.name}!",
         description=(
@@ -208,14 +203,19 @@ async def on_member_join(member):
 
     print(f"📨 Wysłano powitanie dla {member}.")
 
-
-# ===== MEMBER REMOVE (licznik) =====
-@bot.event
-async def on_member_remove(member):
-    guild = member.guild
+# ===== LICZNIK CZŁONKÓW CO GODZINĘ =====
+async def member_count_loop():
+    await bot.wait_until_ready()
+    guild = bot.get_guild(GUILD_ID)
     channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
-    if channel:
+    if not guild or not channel:
+        print("⚠️ Nie znaleziono guildy lub kanału licznika!")
+        return
+    while not bot.is_closed():
         await channel.edit(name=f"Członkowie: {guild.member_count}")
+        await asyncio.sleep(3600)  # co 1 godzinę
+
+bot.loop.create_task(member_count_loop())
 
 # ===== START BOTA =====
 @bot.event
@@ -229,23 +229,88 @@ async def on_ready():
 # ===== SERWER KEEP-ALIVE =====
 def run_http_server():
     from http.server import BaseHTTPRequestHandler, HTTPServer
-
     class KeepAliveHandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            html = "<h1>Bot is alive</h1>"
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
+            html = """
+            <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CallMeBot - Status page</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+<style>
+    body {
+         margin: 0; 
+         padding: 0;
+         overflow: hidden;
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
+    }
+    h1 {
+        color: white;
+        font-size: 4rem;
+        margin: 0;
+    }
+    p {
+        color: #777;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    #text {
+        text-align: center;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+
+    }
+</style>
+</head>
+<body>
+    <div id="my-background" style="width: 100vw; height: 100vh;">
+        <div id="text">
+            <h1>Bot is alive and running</h1>
+            <p>Everything looks good — your Discord bot is online 🚀</p>
+        </div>
+
+    </div>
+<script>
+  VANTA.NET({
+    el: "#my-background",
+    backgroundAlpha: 1,
+    backgroundColor: 0xe0318,
+    color: 0x4a1a32,
+    gyroControls: false,
+    maxDistance: 24,
+    minHeight: 200,
+    minWidth: 200,
+    mouseControls: true,
+    points: 18,
+    scale: 1,
+    scaleMobile: 1,
+    showDots: true,
+    spacing: 16,
+    touchControls: false
+  });
+</script>
+</body>
+</html>
+            """
         def log_message(self, format, *args):
             return
-
     PORT = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("", PORT), KeepAliveHandler)
     print(f"🌐 HTTP server działa na porcie {PORT}")
     server.serve_forever()
 
-# ===== START SERWERA KEEP-ALIVE =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
