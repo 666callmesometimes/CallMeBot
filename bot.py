@@ -319,9 +319,47 @@ async def on_member_remove(member):
         await channel.edit(name=f"Członkowie: {guild.member_count}")
 
 
+# ===== POWITANIE NOWEGO UŻYTKOWNIKA =====
+RULES_CHANNEL_ID = 1283847799154413611  # ⬅️ ID kanału #zasady
+
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+
+    # 🔸 Aktualizacja licznika członków
+    count_channel = bot.get_channel(MEMBER_COUNT_CHANNEL_ID)
+    if count_channel:
+        await count_channel.edit(name=f"Członkowie: {guild.member_count}")
+
+    # 🔸 Pobranie kanału z zasadami
+    channel = bot.get_channel(RULES_CHANNEL_ID)
+    if not channel:
+        print("⚠️ Nie znaleziono kanału z zasadami.")
+        return
+
+    # 🔸 Ustaw uprawnienia — widzi tylko on
+    await channel.set_permissions(member, read_messages=True, send_messages=False)
+
+    # 🔸 Wyślij powitanie
+    embed = discord.Embed(
+        title="👋 Witaj na serwerze!",
+        description=(
+            f"Hej {member.mention}!\n\n"
+            "Aby korzystać z serwera, przeczytaj regulamin poniżej i kliknij emotkę ✅, "
+            "aby go zaakceptować.\n\n"
+            "Po akceptacji uzyskasz pełny dostęp do wszystkich kanałów."
+        ),
+        color=discord.Color.orange()
+    )
+
+    await channel.send(member.mention, embed=embed)
+    print(f"📨 Wysłano powitanie dla nowego użytkownika: {member}")
+
+
 # ===== START SERWERA I BOTA =====
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
