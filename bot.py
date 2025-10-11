@@ -243,15 +243,15 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     welcome_channel = guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
-    embed = discord.Embed(
-        title="✅ Weryfikacja zakończona!",
-        description="Twoje konto zostało pomyślnie zweryfikowane 🎉",
-        color=discord.Color.orange()
-    )
-    await welcome_channel.send(
-        content=f"{member.mention}",  # 🔔 ping użytkownika
-        embed=embed
-    )
+        embed = discord.Embed(
+            title="✅ Weryfikacja zakończona!",
+            description="Twoje konto zostało pomyślnie zweryfikowane 🎉",
+            color=discord.Color.orange()
+        )
+        await welcome_channel.send(
+            content=f"{member.mention}",  # 🔔 ping użytkownika
+            embed=embed
+        )
 
 
     channel = guild.get_channel(RULES_CHANNEL_ID)
@@ -392,6 +392,7 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
