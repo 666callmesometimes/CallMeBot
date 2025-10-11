@@ -15,9 +15,14 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 1283847799154413609
 MARKETPLACE_CATEGORY_ID = 1283892372635127818
 
+
+VERIFY_MESSAGE_ID = 1423987710430806016  # ID wiadomości w kanale #zasady
+VERIFY_EMOJI = "✅"
+
 # ID ról
 ADMIN_ROLE_ID = 1424068271954595870
 MOD_ROLE_ID = 1424068385292947576
+VERIFIED_ROLE_ID = 1283848145066790933
 
 # Kanały
 MEMBER_COUNT_CHANNEL_ID = 1425907738428440789
@@ -174,15 +179,11 @@ async def on_member_join(member):
     if not welcome_channel:
         print("⚠️ Nie znaleziono kanału powitalnego!")
         return
-    # Ping dla użytkownika
     await welcome_channel.send(f"Witaj {member.mention}! 🎉")
-    # Embed powitalny
     embed = discord.Embed(
         title=f"👋 Cieszymy się, że dołączyłeś {member.name}!",
-        description=(
-            "Aby w pełni korzystać z serwera, przeczytaj **regulamin** klikając w przycisk poniżej. "
-            "Po zaakceptowaniu, Carl-bot nada Ci odpowiednią rolę i odblokuje wszystkie kanały."
-        ),
+        description=("Aby w pełni korzystać z serwera, przeczytaj **regulamin** klikając w przycisk poniżej. "
+                     "Po zaakceptowaniu, Carl-bot nada Ci odpowiednią rolę i odblokuje wszystkie kanały."),
         color=discord.Color.purple()
     )
     rules_channel = bot.get_channel(RULES_CHANNEL_ID)
@@ -213,6 +214,81 @@ async def member_count_loop():
         except Exception as e:
             print(f"⚠️ Błąd aktualizacji licznika: {e}")
         await asyncio.sleep(3600)
+
+# ===== SYSTEM WERYFIKACJI NA EMOTKĘ (DODANA ZMIANA) =====
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    if payload.message_id != VERIFY_MESSAGE_ID or str(payload.emoji) != VERIFY_EMOJI:
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    if not guild:
+        return
+
+    member = guild.get_member(payload.user_id)
+    if not member or member.bot:
+        return
+
+    role = guild.get_role(VERIFIED_ROLE_ID)
+    if not role:
+        print("⚠️ Brak roli 'Zweryfikowany'")
+        return
+
+    # ---- DODANE SPRAWDZENIE ----
+    if role in member.roles:
+        # Użytkownik już jest zweryfikowany, nie wysyłaj powiadomienia i nie dodawaj roli
+        return
+
+    await member.add_roles(role, reason="Weryfikacja przez reakcję")
+
+    welcome_channel = guild.get_channel(WELCOME_CHANNEL_ID)
+    if welcome_channel:
+        embed = discord.Embed(
+            title="✅ Weryfikacja zakończona!",
+            description=f"{member.mention} został pomyślnie zweryfikowany 🎉",
+            color=discord.Color.purple()
+        )
+        await welcome_channel.send(embed=embed)
+
+    channel = guild.get_channel(RULES_CHANNEL_ID)
+    message = await channel.fetch_message(VERIFY_MESSAGE_ID)
+    for reaction in message.reactions:
+        if str(reaction.emoji) == VERIFY_EMOJI:
+            async for user in reaction.users():
+                if user.id == member.id:
+                    break
+            else:
+                await message.add_reaction(VERIFY_EMOJI)
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    if payload.message_id != VERIFY_MESSAGE_ID or str(payload.emoji) != VERIFY_EMOJI:
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    if not guild:
+        return
+
+    member = guild.get_member(payload.user_id)
+    if not member or member.bot:
+        return
+
+    channel = guild.get_channel(RULES_CHANNEL_ID)
+    message = await channel.fetch_message(VERIFY_MESSAGE_ID)
+    await message.add_reaction(VERIFY_EMOJI)
+
+@bot.event
+async def on_member_remove(member: discord.Member):
+    guild = member.guild
+    channel = guild.get_channel(RULES_CHANNEL_ID)
+
+    try:
+        message = await channel.fetch_message(VERIFY_MESSAGE_ID)
+        await message.remove_reaction(VERIFY_EMOJI, member)
+        print(f"🧹 Usunięto reakcję po wyjściu {member.name}")
+    except Exception as e:
+        print(f"⚠️ Błąd przy usuwaniu reakcji: {e}")
+
 
 # ===== START BOTA =====
 @bot.event
@@ -312,4 +388,5 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
