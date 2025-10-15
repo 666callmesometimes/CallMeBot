@@ -274,7 +274,7 @@ def run_http_server():
                 self.send_response(200)
                 self.send_header("Content-type", "text/html")
                 self.end_headers()
-            def log_message(self, *args):
+        def log_message(self, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("", PORT), Handler)
@@ -283,6 +283,7 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
 
