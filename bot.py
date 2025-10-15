@@ -203,7 +203,7 @@ def run_http_server():
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write(b"<h1>Bot is running 🚀</h1>")
+            self.wfile.write("<h1>Bot is running 🚀</h1>".encode("utf-8"))
         def log_message(self, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
@@ -213,3 +213,4 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
