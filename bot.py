@@ -200,8 +200,8 @@ async def on_ready():
 def run_http_server():
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-             html = """
-            <!DOCTYPE html>
+                html = """
+                <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -271,10 +271,10 @@ def run_http_server():
 </body>
 </html>
             """
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-        def log_message(self, *args):
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+            def log_message(self, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("", PORT), Handler)
@@ -283,5 +283,6 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
 
