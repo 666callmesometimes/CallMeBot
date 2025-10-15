@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import asyncio
 import threading
 from discord.ui import View, Button
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # === ŁADOWANIE TOKENA Z .ENV ===
 load_dotenv()
@@ -15,16 +16,13 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 1283847799154413609
 MARKETPLACE_CATEGORY_ID = 1283892372635127818
 
-
-VERIFY_MESSAGE_ID = 1423987710430806016  # ID wiadomości w kanale #zasady
+VERIFY_MESSAGE_ID = 1423987710430806016
 VERIFY_EMOJI = "✅"
 
-# ID ról
 ADMIN_ROLE_ID = 1424068271954595870
 MOD_ROLE_ID = 1424068385292947576
 VERIFIED_ROLE_ID = 1283848145066790933
 
-# Kanały
 MEMBER_COUNT_CHANNEL_ID = 1425907738428440789
 WELCOME_CHANNEL_ID = 1331993023772364879
 RULES_CHANNEL_ID = 1283847799154413611
@@ -39,16 +37,31 @@ intents.presences = True
 # === DEFINICJA BOTA ===
 class MyBot(commands.Bot):
     async def setup_hook(self):
-        # Keep-alive task
+        # Keep-alive + watchdog
         self.loop.create_task(self.keep_alive())
-        # Uruchomienie licznika członków co godzinę
+        self.loop.create_task(self.watchdog())
+        # licznik członków
         self.loop.create_task(member_count_loop())
 
     async def keep_alive(self):
+        """Task utrzymujący aktywność i logujący stan bota."""
         await self.wait_until_ready()
         while not self.is_closed():
-            print("✅ Bot jest online i aktywny (keep-alive).")
+            try:
+                print(f"✅ Bot aktywny jako {self.user} (ping: {round(self.latency*1000)} ms)")
+            except Exception as e:
+                print(f"⚠️ Błąd keep-alive: {e}")
             await asyncio.sleep(600)
+
+    async def watchdog(self):
+        """Restartuje proces, jeśli bot utraci połączenie z Discordem."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            await asyncio.sleep(300)  # co 5 minut
+            if not self.is_ws_ratelimited() and self.latency < 10:
+                continue
+            print("⚠️ Watchdog wykrył problem z połączeniem. Restart procesu...")
+            os._exit(1)  # Render automatycznie wznowi proces
 
 bot = MyBot(command_prefix="!", intents=intents)
 
@@ -61,16 +74,7 @@ def is_admin_or_mod():
         return admin_role or mod_role
     return app_commands.check(predicate)
 
-# ===== USUWANIE STARYCH KOMEND =====
-async def clear_guild_commands():
-    guild = discord.Object(id=GUILD_ID)
-    await bot.tree.sync(guild=guild)
-    current_commands = await bot.tree.fetch_commands(guild=guild)
-    for cmd in current_commands:
-        await bot.tree.remove_command(cmd.name, guild=guild)
-    print("✅ Wszystkie stare komendy w guildzie zostały usunięte.")
-
-# ===== KOMENDY BLOKUJĄCE/ODBLOKOWUJĄCE =====
+# ===== KOMENDY =====
 @bot.tree.command(name="mp-block", description="Zablokuj użytkownikowi dostęp do Marketplace")
 @app_commands.describe(uzytkownik="Użytkownik, który ma być zablokowany")
 @is_admin_or_mod()
@@ -124,7 +128,6 @@ async def mp_blocked(interaction: discord.Interaction):
         msg = "✅ Brak zablokowanych użytkowników w Marketplace."
     await interaction.response.send_message(msg, ephemeral=False)
 
-# ===== KOMENDA SAY =====
 @bot.tree.command(name="say", description="Bot wysyła wiadomość o podanej treści na wybrany kanał.")
 @app_commands.describe(
     kanal="Kanał, na który bot ma wysłać wiadomość",
@@ -144,7 +147,6 @@ async def say(interaction: discord.Interaction, kanal: discord.TextChannel, tre�
             ephemeral=True
         )
 
-# ===== CZYSZCZENIE WIADOMOŚCI =====
 @bot.tree.command(name="clear", description="Usuń określoną liczbę wiadomości z kanału lub wszystkie (parametr 'all').")
 @app_commands.describe(ilosc="Liczba wiadomości do usunięcia lub 'all'")
 @is_admin_or_mod()
@@ -200,7 +202,7 @@ async def on_member_join(member):
         await welcome_channel.send(embed=embed)
     print(f"📨 Wysłano powitanie dla {member}.")
 
-# ===== LICZNIK CZŁONKÓW CO GODZINĘ =====
+# ===== LICZNIK CZŁONKÓW =====
 async def member_count_loop():
     await bot.wait_until_ready()
     guild = bot.get_guild(GUILD_ID)
@@ -215,32 +217,24 @@ async def member_count_loop():
             print(f"⚠️ Błąd aktualizacji licznika: {e}")
         await asyncio.sleep(3600)
 
-# ===== SYSTEM WERYFIKACJI NA EMOTKĘ (DODANA ZMIANA) =====
+# ===== SYSTEM WERYFIKACJI =====
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.message_id != VERIFY_MESSAGE_ID or str(payload.emoji) != VERIFY_EMOJI:
         return
-
     guild = bot.get_guild(payload.guild_id)
     if not guild:
         return
-
     member = guild.get_member(payload.user_id)
     if not member or member.bot:
         return
-
     role = guild.get_role(VERIFIED_ROLE_ID)
     if not role:
         print("⚠️ Brak roli 'Zweryfikowany'")
         return
-
-    # ---- DODANE SPRAWDZENIE ----
     if role in member.roles:
-        # Użytkownik już jest zweryfikowany, nie wysyłaj powiadomienia i nie dodawaj roli
         return
-
     await member.add_roles(role, reason="Weryfikacja przez reakcję")
-
     welcome_channel = guild.get_channel(WELCOME_CHANNEL_ID)
     if welcome_channel:
         embed = discord.Embed(
@@ -248,151 +242,31 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             description="Twoje konto zostało pomyślnie zweryfikowane 🎉",
             color=discord.Color.orange()
         )
-        await welcome_channel.send(
-            content=f"{member.mention}",  # 🔔 ping użytkownika
-            embed=embed
-        )
+        await welcome_channel.send(content=f"{member.mention}", embed=embed)
 
-
-    channel = guild.get_channel(RULES_CHANNEL_ID)
-    message = await channel.fetch_message(VERIFY_MESSAGE_ID)
-    for reaction in message.reactions:
-        if str(reaction.emoji) == VERIFY_EMOJI:
-            async for user in reaction.users():
-                if user.id == member.id:
-                    break
-            else:
-                await message.add_reaction(VERIFY_EMOJI)
-
-@bot.event
-async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
-    if payload.message_id != VERIFY_MESSAGE_ID or str(payload.emoji) != VERIFY_EMOJI:
-        return
-
-    guild = bot.get_guild(payload.guild_id)
-    if not guild:
-        return
-
-    member = guild.get_member(payload.user_id)
-    if not member or member.bot:
-        return
-
-    channel = guild.get_channel(RULES_CHANNEL_ID)
-    message = await channel.fetch_message(VERIFY_MESSAGE_ID)
-    await message.add_reaction(VERIFY_EMOJI)
-
-@bot.event
-async def on_member_remove(member: discord.Member):
-    guild = member.guild
-    channel = guild.get_channel(RULES_CHANNEL_ID)
-
-    try:
-        message = await channel.fetch_message(VERIFY_MESSAGE_ID)
-        await message.remove_reaction(VERIFY_EMOJI, member)
-        print(f"🧹 Usunięto reakcję po wyjściu {member.name}")
-    except Exception as e:
-        print(f"⚠️ Błąd przy usuwaniu reakcji: {e}")
-
-
-# ===== START BOTA =====
 @bot.event
 async def on_ready():
     print(f"✅ Bot zalogowany jako {bot.user}")
-    await clear_guild_commands()
-    await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-    await bot.tree.sync()
-    print("✅ Komendy zsynchronizowane i gotowe do użycia w guildzie.")
+    try:
+        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        print(f"✅ Zsynchronizowano {len(synced)} komend dla guildy.")
+    except Exception as e:
+        print(f"⚠️ Błąd synchronizacji komend: {e}")
 
-# ===== SERWER KEEP-ALIVE =====
+# ===== PROSTY HTTP KEEP-ALIVE =====
 def run_http_server():
-    from http.server import BaseHTTPRequestHandler, HTTPServer
     class KeepAliveHandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            html = """
-            <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CallMeBot - Status page</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
-<style>
-    body {
-         margin: 0; 
-         padding: 0;
-         overflow: hidden;
-         display: flex;
-         justify-content: center;
-         align-items: center;
-         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-    }
-    h1 {
-        color: white;
-        font-size: 4rem;
-        margin: 0;
-    }
-    p {
-        color: #777;
-        font-size: 1rem;
-        font-weight: 500;
-    }
-    #text {
-        text-align: center;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-
-    }
-</style>
-</head>
-<body>
-    <div id="my-background" style="width: 100vw; height: 100vh;">
-        <div id="text">
-            <h1>Bot is alive and running</h1>
-            <p>Everything looks good — your Discord bot is online 🚀</p>
-        </div>
-
-    </div>
-<script>
-  VANTA.NET({
-    el: "#my-background",
-    backgroundAlpha: 1,
-    backgroundColor: 0xe0318,
-    color: 0x4a1a32,
-    gyroControls: false,
-    maxDistance: 24,
-    minHeight: 200,
-    minWidth: 200,
-    mouseControls: true,
-    points: 18,
-    scale: 1,
-    scaleMobile: 1,
-    showDots: true,
-    spacing: 16,
-    touchControls: false
-  });
-</script>
-</body>
-</html>
-            """
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(html.encode("utf-8"))
+            self.wfile.write(b"<h1>Bot is alive and running 🚀</h1>")
         def log_message(self, format, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("", PORT), KeepAliveHandler)
-    print(f"🌐 HTTP server działa na porcie {PORT}")
+    print(f"🌐 HTTP server dziala na porcie {PORT}")
     server.serve_forever()
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
-
-
-
-
