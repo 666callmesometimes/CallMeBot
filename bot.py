@@ -200,10 +200,80 @@ async def on_ready():
 def run_http_server():
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
+             html = """
+            <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CallMeBot - Status page</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+<style>
+    body {
+         margin: 0; 
+         padding: 0;
+         overflow: hidden;
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    }
+    h1 {
+        color: white;
+        font-size: 4rem;
+        margin: 0;
+    }
+    p {
+        color: #777;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    #text {
+        text-align: center;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+
+    }
+</style>
+</head>
+<body>
+    <div id="my-background" style="width: 100vw; height: 100vh;">
+        <div id="text">
+            <h1>Bot is alive and running</h1>
+            <p>Everything looks good — your Discord bot is online 🚀</p>
+        </div>
+
+    </div>
+<script>
+  VANTA.NET({
+    el: "#my-background",
+    backgroundAlpha: 1,
+    backgroundColor: 0xe0318,
+    color: 0x4a1a32,
+    gyroControls: false,
+    maxDistance: 24,
+    minHeight: 200,
+    minWidth: 200,
+    mouseControls: true,
+    points: 18,
+    scale: 1,
+    scaleMobile: 1,
+    showDots: true,
+    spacing: 16,
+    touchControls: false
+  });
+</script>
+</body>
+</html>
+            """
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write("<h1>Bot is running 🚀</h1>".encode("utf-8"))
         def log_message(self, *args):
             return
     PORT = int(os.environ.get("PORT", 10000))
@@ -213,4 +283,5 @@ def run_http_server():
 
 threading.Thread(target=run_http_server, daemon=True).start()
 bot.run(TOKEN)
+
 
